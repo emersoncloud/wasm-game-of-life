@@ -1,10 +1,8 @@
 mod utils;
 
 use wasm_bindgen::prelude::*;
-use std::fmt;
 use web_sys;
 use js_sys;
-use fixedbitset::FixedBitSet;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -22,7 +20,7 @@ pub enum Cell {
 pub struct Universe {
     width: u32,
     height: u32,
-    cells: FixedBitSet,
+    cells: Vec<Cell>,
 }
 
 #[wasm_bindgen]
@@ -31,14 +29,14 @@ impl Universe {
         let width = 2;
         let height = 2;
 
-        let size = (width * height) as usize;
-
-        let mut cells = FixedBitSet::with_capacity(size);
-
-        for i in 0..size {
-            cells.set(i, i % 2 == 0 || i % 7 == 0);
-            cells.set(i, true);
-        }
+        let cells = (0..width * height).map(|i| {
+            if i % 2 == 0 || i % 7 == 0 {
+                 Cell::Alive
+            } else {
+                Cell::Dead
+            }
+        })
+        .collect();
 
         Universe {
             width,
@@ -48,12 +46,14 @@ impl Universe {
     }
 
     pub fn new_size(w: u32, h: u32) -> Universe {
-        let size = (w * h) as usize;
-        let mut cells = FixedBitSet::with_capacity(size);
-
-        for i in 0..size {
-            cells.set(i, js_sys::Math::random() < 0.5);
-        }
+        let cells = (0..w * h).map(|_i| {
+            if js_sys::Math::random() < 0.5 {
+                 Cell::Alive
+            } else {
+                Cell::Dead
+            }
+        })
+        .collect();
 
         Universe {width: w, height: h, cells: cells}
     }
@@ -66,13 +66,15 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbor_count(row, col);
 
-                next.set(idx, match (cell, live_neighbors) {
-                    (true, x) if x < 2 => false,
-                    (true, 2) | (true, 3) => true,
-                    (true, x) if x > 3 => false,
-                    (false, 3) => true,
+                let next_cell = match (cell, live_neighbors) {
+                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (Cell::Dead, 3) => Cell::Alive,
                     (otherwise, _) => otherwise,
-                });
+                };
+
+                next[idx] = next_cell;
             }
         }
         self.cells = next;
@@ -80,7 +82,7 @@ impl Universe {
 
     pub fn print_cells(&self) {
         let d = js_sys::Array::new();
-        for x in (0..self.cells.len()) {
+        for x in 0..self.cells.len() {
             let y = self.cells[x] as u32;
             d.push(&JsValue::from(y));
         }
@@ -95,8 +97,8 @@ impl Universe {
         self.height
     }
 
-    pub fn cells(&self) -> *const u32 {
-        self.cells.as_slice().as_ptr()
+    pub fn cells(&self) -> *const Cell {
+        self.cells.as_ptr()
     }
 
     pub fn set_width(&mut self, width: u32) {
@@ -106,10 +108,8 @@ impl Universe {
 
     pub fn set_height(&mut self, height: u32) {
         self.height = height;
-        self.cells = (0..width * self.height).map(|_i| Cell::Dead).collect();
+        self.cells = (0..height * self.height).map(|_i| Cell::Dead).collect();
     }
-
-
 
     fn get_index(&self, row: u32, column: u32) -> usize {
         (row * self.width + column) as usize
@@ -122,10 +122,10 @@ impl Universe {
                 if delta_row == 0 && delta_col == 0 {
                     continue;
                 }
-                
+
                 let neighbor_row = (row + delta_row) % self.height;
                 let neighbor_col = (column + delta_col) % self.width;
-                let idx = self.get_index(neighbor_row, neighbor_col);  
+                let idx = self.get_index(neighbor_row, neighbor_col);
                 count += self.cells[idx] as u8;
             }
         }
