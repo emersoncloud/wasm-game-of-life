@@ -6,8 +6,6 @@ use web_sys;
 use js_sys;
 use fixedbitset::FixedBitSet;
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -49,44 +47,19 @@ impl Universe {
         }
     }
 
-    pub fn print_cells(&self) {
-        let d = js_sys::Array::new();
-        for x in (0..self.cells.len()) {
-            let y = self.cells[x] as u32;
-            d.push(&JsValue::from(y));
-        }
-        web_sys::console::log(&d);
-    }
-     
     pub fn new_size(w: u32, h: u32) -> Universe {
         let size = (w * h) as usize;
         let mut cells = FixedBitSet::with_capacity(size);
 
         for i in 0..size {
             cells.set(i, js_sys::Math::random() < 0.5);
-            // cells.set(i, true);
         }
 
         Universe {width: w, height: h, cells: cells}
     }
 
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    pub fn height(&self) -> u32 {
-        self.height
-    }
-
-    pub fn cells(&self) -> *const u32 {
-        self.cells.as_slice().as_ptr()
-    }
-
-
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
-        // self.print_cells();
-
         for row in 0..self.height {
             for col in 0..self.width {
                 let idx = self.get_index(row, col);
@@ -104,6 +77,38 @@ impl Universe {
         }
         self.cells = next;
     }
+
+    pub fn print_cells(&self) {
+        let d = js_sys::Array::new();
+        for x in (0..self.cells.len()) {
+            let y = self.cells[x] as u32;
+            d.push(&JsValue::from(y));
+        }
+        web_sys::console::log(&d);
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn cells(&self) -> *const u32 {
+        self.cells.as_slice().as_ptr()
+    }
+
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        self.cells = (0..width * self.height).map(|_i| Cell::Dead)).collect();
+    }
+
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        self.cells = (0..width * self.height).map(|_i| Cell::Dead)).collect();
+    }
+
 
 
     fn get_index(&self, row: u32, column: u32) -> usize {
