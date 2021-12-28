@@ -8,12 +8,24 @@ use js_sys;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )*).into());
+    }
+}
+
 #[wasm_bindgen]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cell {
     Dead = 0,
     Alive = 1,
+
+    fn toggle(&mut self) {
+        *self = match *self {
+            Cell::Dead => 
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -26,6 +38,7 @@ pub struct Universe {
 #[wasm_bindgen]
 impl Universe {
     pub fn new() -> Universe {
+        utils::set_panic_hook();
         let width = 2;
         let height = 2;
 
@@ -46,6 +59,7 @@ impl Universe {
     }
 
     pub fn new_size(w: u32, h: u32) -> Universe {
+        utils::set_panic_hook();
         let cells = (0..w * h).map(|_i| {
             if js_sys::Math::random() < 0.5 {
                  Cell::Alive
@@ -65,6 +79,14 @@ impl Universe {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbor_count(row, col);
+
+                log!(
+                    "cell[{}, {}] is initially {:?} and has {} live neighbors",
+                    row,
+                    col,
+                    cell,
+                    live_neighbors
+                );
 
                 let next_cell = match (cell, live_neighbors) {
                     (Cell::Alive, x) if x < 2 => Cell::Dead,
@@ -130,5 +152,19 @@ impl Universe {
             }
         }
         count
+    }
+}
+
+// For testing
+impl Universe {
+    pub fn get_cells(&self) -> &[Cell] {
+        &self.cells
+    }
+
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+        for (row, col) in cells.iter().cloned() {
+            let idx = self.get_index(row, col);
+            self.cells[idx] = Cell::Alive;
+        }
     }
 }

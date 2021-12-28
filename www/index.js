@@ -23,13 +23,10 @@ const getIndex = (row, column) => {
 }
 
 
-const renderLoop = () => {
-  drawGrid();
-  drawCells();
+let animationId = null;
 
-  universe.tick();
-  setTimeout(() => {renderLoop()}, 1000);
-
+const isPaused = () => {
+  return animationId === null;
 };
 
 const drawGrid = () => {
@@ -76,6 +73,42 @@ const drawCells = () => {
   ctx.stroke();
 };
 
+const renderLoop = () => {
+  drawGrid();
+  drawCells();
+
+  universe.tick();
+  console.log(animationId);
+
+  animationId = requestAnimationFrame(renderLoop);
+
+};
+
+const playPauseButton = document.getElementById("play-pause");
+
+const play = () => {
+  playPauseButton.textContent = "pause";
+  renderLoop();
+}
+
+
+const pause = () => {
+  playPauseButton.textContent = "play";
+  cancelAnimationFrame(animationId);
+  animationId = null;
+}
+
+playPauseButton.addEventListener("click", event => {
+  if (isPaused()) {
+    play();
+  } else {
+    pause();
+  }
+});
+
+
+
+play();
 drawGrid();
 drawCells();
 requestAnimationFrame(renderLoop);
